@@ -32,7 +32,7 @@ public class AgenteComprador extends Agent {
                 System.out.println("Requisitando compra... "+carro.getModelo());
                 //Procura por vendedores
                 DFAgentDescription template = new DFAgentDescription();//Páginas amarelas
-                ServiceDescription servico = new ServiceDescription();//Serviço
+                ServiceDescription servico = new ServiceDescription();//Cria um serviço
                 servico.setType("troca-carro");//procura pelo serviço do tipo "venda carro"
                 template.addServices(servico);
                 try {
@@ -167,7 +167,7 @@ public class AgenteComprador extends Agent {
 
             if (ano.matches("^\\d+$") && preco.matches("^\\d+$")) {
                 carro.setAno(Integer.parseInt(ano));
-                carro.setPreco(new BigDecimal(preco));
+                carro.setPreco(Double.parseDouble(preco));
             } else {
                 System.out.println("Ano ou preço inválidos!");
                 continue;

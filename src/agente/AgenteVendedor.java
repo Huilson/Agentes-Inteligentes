@@ -17,32 +17,15 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 public class AgenteVendedor extends Agent {
     List<Carro> carros = new ArrayList<>();
-    Carro onix = new Carro(
-            "Onix",
-            "Chevrolet",
-            2025,
-            3,
-            0.0,
-            List.of(Adicionais.AR_CONDICIONADO, Adicionais.BANCOS_DE_COURO),
-            10,
-            new BigDecimal("90000.00")
-    );
-    Carro gol = new Carro(
-            "Gol",
-            "Volkswagen",
-            2010,
-            1,
-            124523.25,
-            List.of(),
-            3,
-            new BigDecimal("10000.00")
-    );
+
     @Override
     protected void setup() {
-        carros.add(onix);
+        adicionarCarros();//adiciona um carro aleatório ao vendedor
+
         //Registro do serviço do vendedor de carros nas páginas amarelas
         //Directory Facilitator
         DFAgentDescription dfd = new DFAgentDescription();
@@ -50,8 +33,8 @@ public class AgenteVendedor extends Agent {
 
         //Descrição do serviço
         ServiceDescription sd = new ServiceDescription();
-        sd.setType("vendedor-carro");//O tipo do serviço
-        sd.setName("JADE-troca-carro");//O nome do serviço
+        sd.setType("troca-carro");//O tipo do serviço
+        sd.setName("negociar-carro");//O nome do serviço
         dfd.addServices(sd);
         try {
             DFService.register(this, dfd);
@@ -67,6 +50,12 @@ public class AgenteVendedor extends Agent {
         while (it.hasNext()) {
             System.out.println("- " + it.next());
         }
+
+        /**
+         * COMPORTAMENTOS DO VENDEDOR
+         * */
+        addBehaviour(new OfertarCarro());
+        addBehaviour(new VenderCarro());
     }
 
     /**
@@ -75,27 +64,87 @@ public class AgenteVendedor extends Agent {
     private Carro buscarCarro(String carroRequisitado) {
         for (Carro carro : carros) {//Itera pelo carros da lista
             if (carro.getModelo().equals(carroRequisitado)) {//por enquanto só busca pelo modelo
+                System.out.println("Carro encontrado, podemos negociar!");
                 return carro;//encontrou o carro
             }
         }//fim for
         return null;//carro não encontrado
     }
 
-    public void adicionarCarro(Carro carro) {
-        addBehaviour(new OneShotBehaviour() {//COMPORTAMENTO PARA ADICIONAR CARRO DA LISTA
-            public void action() {
-                carros.add(carro);
-                System.out.println("Novo carro adicionado!");
-                System.out.println("Marca: " + carro.getMarca());
-                System.out.println("Modelo: " + carro.getModelo());
-                System.out.println("Ano: " + carro.getAno());
-                System.out.println("Preco: " + carro.getPreco());
-                System.out.println("Nota: " + carro.getNota());
-            }
-        });
+    public void adicionarCarros() {
+        Carro onix = new Carro(
+                "Onix",
+                "Chevrolet",
+                2025,
+                3,
+                List.of(Adicionais.AR_CONDICIONADO, Adicionais.CAMARA_RE, Adicionais.DIRECAO_HIDRAULICA),
+                10,
+                new Random().nextDouble(95000.00 - 90000.00) + 90000.00 //valor aleatório do preço do carro
+        );//Formula para gerar preço (máximo - mínimo) + mínimo
+        Carro cruze = new Carro(
+                "Cruze",
+                "Chevrolet",
+                2020,
+                2,
+                List.of(Adicionais.AR_CONDICIONADO, Adicionais.CAMARA_RE, Adicionais.DIRECAO_HIDRAULICA,
+                        Adicionais.CENTRAL_MULTIMIDIA, Adicionais.VIDROS_ELETRICOS),
+                8,
+                new Random().nextDouble(95000.00 - 80000.00) + 80000.00 //valor aleatório do preço do carro
+        );//Formula para gerar preço (máximo - mínimo) + mínimo
+        Carro gol = new Carro(
+                "Gol",
+                "Volkswagen",
+                2010,
+                1,
+                List.of(Adicionais.BANCOS_DE_COURO),
+                3,
+                new Random().nextDouble(15000.00 - 10000.00) + 10000.00 //valor aleatório do preço do carro
+        );//Formula para gerar preço (máximo - mínimo) + mínimo
+        Carro pollo = new Carro(
+                "Pollo",
+                "Volkswagen",
+                2025,
+                3,
+                List.of(Adicionais.CAMARA_RE, Adicionais.AR_CONDICIONADO, Adicionais.CENTRAL_MULTIMIDIA,
+                        Adicionais.SISTEMA_DE_COLISAO, Adicionais.VIDROS_ELETRICOS),
+                3,
+                new Random().nextDouble(89290.00 - 75000.00) + 75000.00 //valor aleatório do preço do carro
+        );//Formula para gerar preço (máximo - mínimo) + mínimo
+        Carro mustangGT = new Carro(
+                "Mustang GT",
+                "Ford",
+                2025,
+                3,
+                List.of(Adicionais.CAMARA_RE, Adicionais.AR_CONDICIONADO, Adicionais.CENTRAL_MULTIMIDIA,
+                        Adicionais.SISTEMA_DE_COLISAO, Adicionais.VIDROS_ELETRICOS),
+                3,
+                new Random().nextDouble(549000.00 - 45000.00) + 45000.00 //valor aleatório do preço do carro
+        );//Formula para gerar preço (máximo - mínimo) + mínimo
+        switch (new Random().nextInt(5)) {
+            case 0:
+                System.out.println("O vendedor tem um Onix disponível");
+                carros.add(onix);
+                break;
+            case 1:
+                System.out.println("O vendedor tem um Onix disponível");
+                carros.add(cruze);
+                break;
+            case 2:
+                System.out.println("O vendedor tem um Onix disponível");
+                carros.add(gol);
+                break;
+            case 3:
+                System.out.println("O vendedor tem um Onix disponível");
+                carros.add(pollo);
+                break;
+            case 4:
+                System.out.println("O vendedor tem um Onix disponível");
+                carros.add(mustangGT);
+                break;
+        }
     }
 
-    private BigDecimal removerCarro(String carroVendido) {
+    private Double removerCarro(String carroVendido) {
         Carro carro = buscarCarro(carroVendido);//Chama novamente a Função de busca
 
         addBehaviour(new OneShotBehaviour() {//COMPORTAMENTO PARA REMOVER CARRO DA LISTA
@@ -105,10 +154,10 @@ public class AgenteVendedor extends Agent {
                 }
             }
         });
-        if(carro != null){
+        if (carro != null) {
             return carro.getPreco();//Retorna o preço do carro
         }
-        return  null;//se não achou o carro retorna nulo
+        return null;//se não achou o carro retorna nulo
     }
 
     protected void takeDown() {
@@ -131,6 +180,7 @@ public class AgenteVendedor extends Agent {
             if (msg != null) {
                 // CFP Message received. Process it
                 String prospostaComprador = msg.getContent();//Conteudo da Mensagem, é o que o comprador deseja comprar
+                System.out.println("Resposta de um comprador recebida: " + prospostaComprador);
                 ACLMessage reply = msg.createReply();//Resposta da mensagem, se tem ou não o que o comprador quer, vai ser escrito aqui
 
                 Carro carro = buscarCarro(prospostaComprador);/*Busca pra ver se o livro existe*/
@@ -161,7 +211,7 @@ public class AgenteVendedor extends Agent {
                 String prospostaComprador = msg.getContent();
                 ACLMessage reply = msg.createReply();
 
-                BigDecimal preco = removerCarro(prospostaComprador);
+                Double preco = removerCarro(prospostaComprador);
                 if (preco != null) {
                     reply.setPerformative(ACLMessage.INFORM);//Informar que carro foi vendido
                     System.out.println(prospostaComprador + " sold to agent " + msg.getSender().getName());

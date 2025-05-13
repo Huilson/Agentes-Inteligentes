@@ -18,21 +18,19 @@ public class Carro {
     private String marca;
     private int ano;
     private int estado;//1-velho; 2-usado; 3-novo;
-    private double rodado;
     private List<Adicionais> adicionais;
     private int nota;//De 0 a 10; sendo 10 a melhor a nota
-    private BigDecimal preco;
+    private Double preco;
 
     //CONSTRUTORES
     public Carro() {
     }
 
-    public Carro(String modelo, String marca, int ano, int estado, double rodado, List<Adicionais> adicionais, int nota, BigDecimal preco) {
+    public Carro(String modelo, String marca, int ano, int estado, List<Adicionais> adicionais, int nota, Double preco) {
         this.modelo = modelo;
         this.marca = marca;
         this.ano = ano;
         this.estado = estado;
-        this.rodado = rodado;
         this.adicionais = adicionais;
         this.nota = nota;
         this.preco = preco;
@@ -64,14 +62,6 @@ public class Carro {
         this.estado = estado;
     }
 
-    public double getRodado() {
-        return rodado;
-    }
-
-    public void setRodado(double rodado) {
-        this.rodado = rodado;
-    }
-
     public List<Adicionais> getAdicionais() {
         return adicionais;
     }
@@ -88,11 +78,11 @@ public class Carro {
         this.nota = nota;
     }
 
-    public BigDecimal getPreco() {
+    public Double getPreco() {
         return preco;
     }
 
-    public void setPreco(BigDecimal preco) {
+    public void setPreco(Double preco) {
         this.preco = preco;
     }
 
