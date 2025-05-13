@@ -14,14 +14,12 @@ import modelo.Adicionais;
 import modelo.Carro;
 
 import java.math.BigDecimal;
-import java.sql.Array;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 public class AgenteVendedor extends Agent {
     List<Carro> carros = new ArrayList<>();
-
     Carro onix = new Carro(
             "Onix",
             "Chevrolet",
@@ -42,7 +40,6 @@ public class AgenteVendedor extends Agent {
             3,
             new BigDecimal("10000.00")
     );
-
     @Override
     protected void setup() {
         carros.add(onix);
@@ -72,7 +69,62 @@ public class AgenteVendedor extends Agent {
         }
     }
 
-    public class TrocaCarro extends CyclicBehaviour {
+    /**
+     * COMPORTAMENTOS DO AGENTE (BEHAVIOUR)
+     */
+    private Carro buscarCarro(String carroRequisitado) {
+        for (Carro carro : carros) {//Itera pelo carros da lista
+            if (carro.getModelo().equals(carroRequisitado)) {//por enquanto só busca pelo modelo
+                return carro;//encontrou o carro
+            }
+        }//fim for
+        return null;//carro não encontrado
+    }
+
+    public void adicionarCarro(Carro carro) {
+        addBehaviour(new OneShotBehaviour() {//COMPORTAMENTO PARA ADICIONAR CARRO DA LISTA
+            public void action() {
+                carros.add(carro);
+                System.out.println("Novo carro adicionado!");
+                System.out.println("Marca: " + carro.getMarca());
+                System.out.println("Modelo: " + carro.getModelo());
+                System.out.println("Ano: " + carro.getAno());
+                System.out.println("Preco: " + carro.getPreco());
+                System.out.println("Nota: " + carro.getNota());
+            }
+        });
+    }
+
+    private BigDecimal removerCarro(String carroVendido) {
+        Carro carro = buscarCarro(carroVendido);//Chama novamente a Função de busca
+
+        addBehaviour(new OneShotBehaviour() {//COMPORTAMENTO PARA REMOVER CARRO DA LISTA
+            public void action() {
+                if (carro != null) {
+                    carros.remove(carro);//Remove o carro que foi vendido da lista
+                }
+            }
+        });
+        if(carro != null){
+            return carro.getPreco();//Retorna o preço do carro
+        }
+        return  null;//se não achou o carro retorna nulo
+    }
+
+    protected void takeDown() {
+        // Remover das páginas amarelas
+        try {
+            DFService.deregister(this);
+        } catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
+        System.out.println("Agente vendedor " + getAID().getName() + " terminado.");
+    }
+
+    /**
+     * INNER CLASS
+     */
+    public class OfertarCarro extends CyclicBehaviour {
         public void action() {
             MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);//Call for Proposal, anuncia no mercado
             ACLMessage msg = myAgent.receive(mt);//envio/resposta da mensagem
@@ -81,13 +133,13 @@ public class AgenteVendedor extends Agent {
                 String prospostaComprador = msg.getContent();//Conteudo da Mensagem, é o que o comprador deseja comprar
                 ACLMessage reply = msg.createReply();//Resposta da mensagem, se tem ou não o que o comprador quer, vai ser escrito aqui
 
-                BigDecimal preco = buscaPedido(prospostaComprador);/*Busca pra ver se o livro existe*/
+                Carro carro = buscarCarro(prospostaComprador);/*Busca pra ver se o livro existe*/
 
-                if (!preco.equals(BigDecimal.ZERO)) {
+                if (carro != null) {
                     // The requested book is available for sale Reply with the preco
                     //O carro requerido está disponível para venda
                     reply.setPerformative(ACLMessage.PROPOSE);
-                    reply.setContent(preco.toString());
+                    reply.setContent(carro.getPreco().toString());//retorna só o preço do carro
                 } else {
                     //O carro requerido NÃO está disponível para venda
                     reply.setPerformative(ACLMessage.REFUSE);
@@ -98,33 +150,9 @@ public class AgenteVendedor extends Agent {
                 block();
             }
         }
+    }  // End of inner class Ofertar Carro
 
-        //Comportamento de adicionar carros na lista
-        public void updateCatalogue(Carro carro) {
-            addBehaviour(new OneShotBehaviour() {
-                public void action() {
-                    carros.add(carro);
-                    System.out.println("Novo carro adicionado!");
-                    System.out.println("Marca: "+carro.getMarca());
-                    System.out.println("Modelo: "+carro.getModelo());
-                    System.out.println("Ano: "+carro.getAno());
-                    System.out.println("Preco: "+carro.getPreco());
-                    System.out.println("Nota: "+carro.getNota());
-                }
-            } );
-        }
-
-        public BigDecimal buscaPedido(String carroRequisitado) {
-            for (Carro carro : carros) {
-                if (carro.getModelo().equals(carroRequisitado)) {
-                    return carro.getPreco();//encontrou o carro, retorna o preco dele
-                }
-            }//fim for
-            return BigDecimal.ZERO;//se não tiver o carro na lista retorna 0
-        }
-    }  // End of inner class OfferRequestsServer
-
-    private class PurchaseOrdersServer extends CyclicBehaviour {
+    private class VenderCarro extends CyclicBehaviour {
         public void action() {
             MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
             ACLMessage msg = myAgent.receive(mt);
@@ -133,9 +161,9 @@ public class AgenteVendedor extends Agent {
                 String prospostaComprador = msg.getContent();
                 ACLMessage reply = msg.createReply();
 
-                BigDecimal preco = removeCarro(prospostaComprador);
+                BigDecimal preco = removerCarro(prospostaComprador);
                 if (preco != null) {
-                    reply.setPerformative(ACLMessage.INFORM);
+                    reply.setPerformative(ACLMessage.INFORM);//Informar que carro foi vendido
                     System.out.println(prospostaComprador + " sold to agent " + msg.getSender().getName());
                 } else {
                     // The requested book has been sold to another buyer in the meanwhile .
@@ -147,34 +175,5 @@ public class AgenteVendedor extends Agent {
                 block();
             }
         }
-
-        private void removerCarro(String carroVendido) {
-            Carro carroBuscado = new Carro();//Variavel auxiliar
-            boolean encontrou = false;
-            for (Carro carro : carros) {
-                if (carro.getModelo().equals(carroVendido)) {
-                    carroBuscado = carro;
-                    encontrou = true;
-                    break;//carro encontrado pula fora do FOR
-                }
-            }//fim for
-            if(encontrou){
-                carros.remove(carroBuscado);//Remove o carro que foi vendido da lista
-            }
-        }
-    }  // End of inner class OfferRequestsServer
-
-    protected void takeDown() {
-        // Deregister from the yellow pages
-        try {
-            DFService.deregister(this);
-        }
-        catch (FIPAException fe) {
-            fe.printStackTrace();
-        }
-        // Close the GUI
-        // myGui.dispose();
-        // Printout a dismissal message
-        System.out.println("Agente vendedor "+getAID().getName()+" terminado.");
-    }
+    }  // End of inner class Vender Carro
 }//FIM DA CLASSE MAIN
