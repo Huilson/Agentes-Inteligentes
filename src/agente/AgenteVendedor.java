@@ -14,6 +14,7 @@ import modelo.Adicionais;
 import modelo.Carro;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -24,7 +25,9 @@ public class AgenteVendedor extends Agent {
 
     @Override
     protected void setup() {
-        adicionarCarros();//adiciona um carro aleatório ao vendedor
+        // Para gerar um carro aleatório use -> new Random().nextInt(5)
+        //Ou insira um valor de 0 a 4 para gerar um carro específico
+        adicionarCarros(1);//adiciona um carro aleatório ao vendedor
 
         //Registro do serviço do vendedor de carros nas páginas amarelas
         //Directory Facilitator
@@ -71,80 +74,87 @@ public class AgenteVendedor extends Agent {
         return null;//carro não encontrado
     }
 
-    public void adicionarCarros() {
+    public void adicionarCarros(int index) {
         Carro onix = new Carro(
-                "Onix",
+                "ONIX",
                 "Chevrolet",
                 2025,
                 3,
                 List.of(Adicionais.AR_CONDICIONADO, Adicionais.CAMARA_RE, Adicionais.DIRECAO_HIDRAULICA),
                 10,
-                new Random().nextDouble(95000.00 - 90000.00) + 90000.00 //valor aleatório do preço do carro
-        );//Formula para gerar preço (máximo - mínimo) + mínimo
+                gerarValor(90000.00, 95000.00)
+        );
         Carro cruze = new Carro(
-                "Cruze",
+                "CRUZE",
                 "Chevrolet",
                 2020,
                 2,
                 List.of(Adicionais.AR_CONDICIONADO, Adicionais.CAMARA_RE, Adicionais.DIRECAO_HIDRAULICA,
                         Adicionais.CENTRAL_MULTIMIDIA, Adicionais.VIDROS_ELETRICOS),
                 8,
-                new Random().nextDouble(95000.00 - 80000.00) + 80000.00 //valor aleatório do preço do carro
-        );//Formula para gerar preço (máximo - mínimo) + mínimo
+                gerarValor( 80000.00, 95000.00)
+        );
         Carro gol = new Carro(
-                "Gol",
+                "GOL",
                 "Volkswagen",
                 2010,
                 1,
                 List.of(Adicionais.BANCOS_DE_COURO),
                 3,
-                new Random().nextDouble(15000.00 - 10000.00) + 10000.00 //valor aleatório do preço do carro
-        );//Formula para gerar preço (máximo - mínimo) + mínimo
+                gerarValor(10000.00, 15000.00)
+        );
         Carro pollo = new Carro(
-                "Pollo",
+                "POLLO",
                 "Volkswagen",
                 2025,
                 3,
                 List.of(Adicionais.CAMARA_RE, Adicionais.AR_CONDICIONADO, Adicionais.CENTRAL_MULTIMIDIA,
                         Adicionais.SISTEMA_DE_COLISAO, Adicionais.VIDROS_ELETRICOS),
                 3,
-                new Random().nextDouble(89290.00 - 75000.00) + 75000.00 //valor aleatório do preço do carro
-        );//Formula para gerar preço (máximo - mínimo) + mínimo
+                gerarValor(75000.00, 89290.00)
+        );
         Carro mustangGT = new Carro(
-                "Mustang GT",
+                "MUSTANG GT",
                 "Ford",
                 2025,
                 3,
                 List.of(Adicionais.CAMARA_RE, Adicionais.AR_CONDICIONADO, Adicionais.CENTRAL_MULTIMIDIA,
                         Adicionais.SISTEMA_DE_COLISAO, Adicionais.VIDROS_ELETRICOS),
                 3,
-                new Random().nextDouble(549000.00 - 45000.00) + 45000.00 //valor aleatório do preço do carro
-        );//Formula para gerar preço (máximo - mínimo) + mínimo
-        switch (new Random().nextInt(5)) {
+                gerarValor(45000.00, 549000.00)
+        );
+        switch (index) {
             case 0:
                 System.out.println("O vendedor tem um Onix disponível");
                 carros.add(onix);
                 break;
             case 1:
-                System.out.println("O vendedor tem um Onix disponível");
+                System.out.println("O vendedor tem um Cruze disponível, preço: "+cruze.getPreco()+"!");
                 carros.add(cruze);
                 break;
             case 2:
-                System.out.println("O vendedor tem um Onix disponível");
+                System.out.println("O vendedor tem um Gol disponível");
                 carros.add(gol);
                 break;
             case 3:
-                System.out.println("O vendedor tem um Onix disponível");
+                System.out.println("O vendedor tem um Pollo disponível");
                 carros.add(pollo);
                 break;
             case 4:
-                System.out.println("O vendedor tem um Onix disponível");
+                System.out.println("O vendedor tem um Mustang GT disponível");
                 carros.add(mustangGT);
                 break;
         }
     }
 
-    private Double removerCarro(String carroVendido) {
+    private BigDecimal gerarValor(double precoMinino, double precoMaximo){
+        BigDecimal preco =  new BigDecimal(
+                new Random().nextDouble(precoMaximo - precoMinino) + precoMinino
+        );
+        return preco.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal removerCarro(String carroVendido) {
         Carro carro = buscarCarro(carroVendido);//Chama novamente a Função de busca
 
         addBehaviour(new OneShotBehaviour() {//COMPORTAMENTO PARA REMOVER CARRO DA LISTA
@@ -211,10 +221,10 @@ public class AgenteVendedor extends Agent {
                 String prospostaComprador = msg.getContent();
                 ACLMessage reply = msg.createReply();
 
-                Double preco = removerCarro(prospostaComprador);
+                BigDecimal preco = removerCarro(prospostaComprador);
                 if (preco != null) {
                     reply.setPerformative(ACLMessage.INFORM);//Informar que carro foi vendido
-                    System.out.println(prospostaComprador + " sold to agent " + msg.getSender().getName());
+                    System.out.println(prospostaComprador + " vendido para " + msg.getSender().getName());
                 } else {
                     // The requested book has been sold to another buyer in the meanwhile .
                     reply.setPerformative(ACLMessage.FAILURE);

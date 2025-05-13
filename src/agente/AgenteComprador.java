@@ -13,6 +13,7 @@ import jade.lang.acl.MessageTemplate;
 import modelo.Carro;
 
 import java.math.BigDecimal;
+import java.util.Iterator;
 import java.util.Scanner;
 
 public class AgenteComprador extends Agent {
@@ -24,7 +25,15 @@ public class AgenteComprador extends Agent {
 
     @Override
     protected void setup() {
-        System.out.println("Agente " + getLocalName() + " inicializado.");
+        System.out.println("Hello World. I’m an agent!");
+        System.out.println("My local-name is " + getAID().getLocalName());
+        System.out.println("My GUID is " + getAID().getName());
+        System.out.println("My addresses are:");
+        Iterator it = getAID().getAllAddresses();
+        while (it.hasNext()) {
+            System.out.println("- " + it.next());
+        }
+
         carro = menu();
 
         addBehaviour(new TickerBehaviour(this, 60000) {
@@ -69,6 +78,9 @@ public class AgenteComprador extends Agent {
         public void action() {
             switch (step) {
                 case 0:
+                    System.out.println("Vamos negociar!\n");
+                    System.out.println("Passo 1 - ");
+                    System.out.println("Vamos ver quais vendoderes tem o carro que você deseja!\n");
                     // Send the cfp to all sellers
                     ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
                     for (int i = 0; i < agentesVendor.length; ++i) {
@@ -84,15 +96,18 @@ public class AgenteComprador extends Agent {
                     step = 1;
                     break;
                 case 1:
+                    System.out.println("\nPasso 2 - ");
+                    System.out.println("Vamos descobrir o "+carro.getModelo()+" mais barato!");
                     // Receive all proposals/refusals from seller agents
                     ACLMessage reply = myAgent.receive(mt);
                     if (reply != null) {
                         // Reply received
                         if (reply.getPerformative() == ACLMessage.PROPOSE) {
                             // This is an offer
-                            BigDecimal price = new BigDecimal (reply.getContent());
+                            BigDecimal price = new BigDecimal(reply.getContent());
                             if (melhorVendedor == null || price.equals(melhorPreco)) {
                                 // This is the best offer at present
+                                System.out.println("Um carro com menor preço encontrado, valor: "+price);
                                 melhorPreco = price;
                                 melhorVendedor = reply.getSender();
                             }
@@ -109,6 +124,8 @@ public class AgenteComprador extends Agent {
                     break;
                 case 2:
                     // Send the purchase order to the seller that provided the best offer
+                    System.out.println("Passo 3 - ");
+                    System.out.println("Vamos fazer a proposta ao vendedor "+melhorVendedor+"!\n");
                     ACLMessage pedido = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                     pedido.addReceiver(melhorVendedor);
                     pedido.setContent(carro.getModelo());
@@ -122,6 +139,8 @@ public class AgenteComprador extends Agent {
                     break;
                 case 3:
                     // Receive the purchase order reply
+                    System.out.println("Passo 4 - ");
+                    System.out.println("Vamos tentar fechar o acordo com "+melhorVendedor+"!\n");
                     reply = myAgent.receive(mt);
                     if (reply != null) {
                         // Purchase order reply received
@@ -129,6 +148,7 @@ public class AgenteComprador extends Agent {
                             // Purchase successful. We can terminate
                             System.out.println(carro.getModelo()+" foi comprado do vendedor "+reply.getSender().getName());
                             System.out.println("Preço = "+ melhorPreco);
+                            System.out.println("Parabéns pela sua nova conquista!");
                             myAgent.doDelete();
                         }
                         else {
@@ -167,7 +187,7 @@ public class AgenteComprador extends Agent {
 
             if (ano.matches("^\\d+$") && preco.matches("^\\d+$")) {
                 carro.setAno(Integer.parseInt(ano));
-                carro.setPreco(Double.parseDouble(preco));
+                carro.setPreco(new BigDecimal(preco));
             } else {
                 System.out.println("Ano ou preço inválidos!");
                 continue;

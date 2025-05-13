@@ -20,13 +20,13 @@ public class Carro {
     private int estado;//1-velho; 2-usado; 3-novo;
     private List<Adicionais> adicionais;
     private int nota;//De 0 a 10; sendo 10 a melhor a nota
-    private Double preco;
+    private BigDecimal preco;
 
     //CONSTRUTORES
     public Carro() {
     }
 
-    public Carro(String modelo, String marca, int ano, int estado, List<Adicionais> adicionais, int nota, Double preco) {
+    public Carro(String modelo, String marca, int ano, int estado, List<Adicionais> adicionais, int nota, BigDecimal preco) {
         this.modelo = modelo;
         this.marca = marca;
         this.ano = ano;
@@ -78,11 +78,11 @@ public class Carro {
         this.nota = nota;
     }
 
-    public Double getPreco() {
+    public BigDecimal getPreco() {
         return preco;
     }
 
-    public void setPreco(Double preco) {
+    public void setPreco(BigDecimal preco) {
         this.preco = preco;
     }
 
