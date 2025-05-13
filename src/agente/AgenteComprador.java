@@ -40,11 +40,20 @@ public class AgenteComprador extends Agent {
             protected void onTick() {
                 System.out.println("Requisitando compra... "+carro.getModelo());
                 //Procura por vendedores
-                DFAgentDescription template = new DFAgentDescription();//Páginas amarelas
+                /**
+                 * Cada serviço deve incluir: tipo, nome e outros necessários para usar o serviço
+                 * e uma coleção de propriedades de serviços-específicos em forma de key-value (hash/map/etc).
+                 * Um agente que deseja buscar por serviços deve fornecer também um DF com um TEMPLATE descritivo.
+                 * */
+                DFAgentDescription template = new DFAgentDescription();//Descrição do Template
                 ServiceDescription servico = new ServiceDescription();//Cria um serviço
-                servico.setType("troca-carro");//procura pelo serviço do tipo "venda carro"
+                servico.setType("troca-carro");//Cria um tipo para o serviço (obrigatório)
                 template.addServices(servico);
-                try {
+                try {/**
+                     * Segundo o livro, se um agente deseja publicar um ou mais serviço é preciso ter o DF
+                     * com a descrição que inclui o AID do agente, uma lista de serviços, e se quiser uma lista
+                     * de linguagens e modelos que outros agentes podem usar para interagir.
+                     */
                     DFAgentDescription[] result = DFService.search(myAgent, template);
                     System.out.println("Agentes de venda encontrados:");
                     agentesVendor = new AID[result.length];//tamanho do array de agentes encontrados
@@ -57,15 +66,14 @@ public class AgenteComprador extends Agent {
                     fe.printStackTrace();
                 }
 
-                // Perform the request
+                // Comportamento para fazer as requisições de compra
                 myAgent.addBehaviour(new NegociarCarro());
             }
         } );
     }
 
     protected void takeDown() {
-        // Printout a dismissal message
-        System.out.println("Buyer-agent "+getAID().getName()+" terminating.");
+        System.out.println("O agente "+getAID().getName()+" terminou o serviço e agora será encerrado.");
     }
 
     private class NegociarCarro extends Behaviour {
@@ -76,46 +84,59 @@ public class AgenteComprador extends Agent {
         private int step = 0;
 
         public void action() {
+            System.out.println("Passo "+step);
             switch (step) {
                 case 0:
-                    System.out.println("Vamos negociar!\n");
-                    System.out.println("Passo 1 - ");
-                    System.out.println("Vamos ver quais vendoderes tem o carro que você deseja!\n");
+                    System.out.println("\nVamos negociar!");
                     // Send the cfp to all sellers
                     ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
                     for (int i = 0; i < agentesVendor.length; ++i) {
+                        System.out.println("Enviando mensagem para "+agentesVendor[i]);
                         cfp.addReceiver(agentesVendor[i]);
                     }
                     cfp.setContent(carro.getModelo());
-                    cfp.setConversationId("book-trade");
-                    cfp.setReplyWith("cfp"+System.currentTimeMillis()); // Unique value
+                    cfp.setConversationId("negociar-carros");
+                    cfp.setReplyWith("cfp"+System.currentTimeMillis()); //Tempo em millisegundos para criar chave única
+                    System.out.println("Call For Proposal, chave gerada: "+cfp.getReplyWith());
                     myAgent.send(cfp);
                     // Prepare the template to get proposals
-                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("book-trade"),
+                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("negociar-carros"),
                             MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
                     step = 1;
+                    try {
+                        Thread.sleep(5000);//dar um tempinho para ler o console
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 case 1:
-                    System.out.println("\nPasso 2 - ");
-                    System.out.println("Vamos descobrir o "+carro.getModelo()+" mais barato!");
-                    // Receive all proposals/refusals from seller agents
+                    // Recebe todas as respostas dos vendedores (seja ACEITE ou RECUSA)
                     ACLMessage reply = myAgent.receive(mt);
                     if (reply != null) {
-                        // Reply received
+                        // Resposta de um vendedor, se for uma PROPOSTA toca o baile
                         if (reply.getPerformative() == ACLMessage.PROPOSE) {
-                            // This is an offer
-                            BigDecimal price = new BigDecimal(reply.getContent());
-                            if (melhorVendedor == null || price.equals(melhorPreco)) {
+                            // Oferta gerada pelo vendedor
+                            BigDecimal preco = new BigDecimal(reply.getContent());
+
+                            //Em BigDecimal a comparação é um pouco diferente, você precisa
+                            //usar o compareTo, para comparar PRECO com MELHORPRECO
+                            //se essa comparação retornar -1, significa que PRECO é menor que MELHORPRECO
+                            if (melhorVendedor == null || preco.compareTo(melhorPreco) < 0) {
                                 // This is the best offer at present
-                                System.out.println("Um carro com menor preço encontrado, valor: "+price);
-                                melhorPreco = price;
+                                System.out.println("\nUm carro com menor preço encontrado, valor: "+preco);
+                                melhorPreco = preco;
                                 melhorVendedor = reply.getSender();
                             }
                         }
                         repliesCnt++;
                         if (repliesCnt >= agentesVendor.length) {
-                            // We received all replies
+                            // Todas as respostas recebidas, próxima etapa
                             step = 2;
+                            try {
+                                Thread.sleep(5000);//dar um tempinho para ler o console
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
                         }
                     }
                     else {
@@ -123,39 +144,47 @@ public class AgenteComprador extends Agent {
                     }
                     break;
                 case 2:
-                    // Send the purchase order to the seller that provided the best offer
-                    System.out.println("Passo 3 - ");
-                    System.out.println("Vamos fazer a proposta ao vendedor "+melhorVendedor+"!\n");
-                    ACLMessage pedido = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
-                    pedido.addReceiver(melhorVendedor);
-                    pedido.setContent(carro.getModelo());
-                    pedido.setConversationId("negociar-carros");
-                    pedido.setReplyWith("Pedido`: "+System.currentTimeMillis());
-                    myAgent.send(pedido);
-                    // Prepare the template to get the purchase order reply
-                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("negociar-carro"),
-                            MessageTemplate.MatchInReplyTo(pedido.getReplyWith()));
+                    //Fazer pedido de comprar para o melhor vendedor
+                    System.out.println("\nVamos fazer a proposta ao vendedor "+melhorVendedor+"!");
+                    ACLMessage mensagemCompra = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);//Manda uma mensagem que foi aceita a proposta
+                    mensagemCompra.addReceiver(melhorVendedor);
+                    mensagemCompra.setContent(carro.getModelo());
+                    mensagemCompra.setConversationId("negociar-carros");
+                    mensagemCompra.setReplyWith("Pedido: "+System.currentTimeMillis());
+                    myAgent.send(mensagemCompra);
+                    // Prepara o template para fazer a resposta da ordem de compra
+                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("negociar-carros"),
+                            MessageTemplate.MatchInReplyTo(mensagemCompra.getReplyWith()));
                     step = 3;
+                    try {
+                        Thread.sleep(5000);//dar um tempinho para ler o console
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 case 3:
-                    // Receive the purchase order reply
-                    System.out.println("Passo 4 - ");
-                    System.out.println("Vamos tentar fechar o acordo com "+melhorVendedor+"!\n");
+                    // Resposta da mensagem do passo acima
+                    System.out.println("\nVamos tentar fechar o acordo com "+melhorVendedor+"!");
                     reply = myAgent.receive(mt);
                     if (reply != null) {
-                        // Purchase order reply received
+                        // Se recebeu a mensagem imforma que deu tudo certo
                         if (reply.getPerformative() == ACLMessage.INFORM) {
-                            // Purchase successful. We can terminate
+                            // Compra bem sucedida
                             System.out.println(carro.getModelo()+" foi comprado do vendedor "+reply.getSender().getName());
                             System.out.println("Preço = "+ melhorPreco);
                             System.out.println("Parabéns pela sua nova conquista!");
-                            myAgent.doDelete();
+                            myAgent.doDelete();//encerrando o agente
                         }
                         else {
                             System.out.println("Houve uma falha na negocição parece que o carro já foi vendido");
                         }
 
                         step = 4;
+                        try {
+                            Thread.sleep(5000);//dar um tempinho para ler o console
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                     else {
                         block();
