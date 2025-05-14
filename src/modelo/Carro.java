@@ -30,9 +30,9 @@ public class Carro {
         this.modelo = modelo;
         this.marca = marca;
         this.ano = ano;
-        this.estado = estado;
+        this.estado = estado;//1-VELHO, 2-USADO, 3-NOVO
         this.adicionais = adicionais;
-        this.nota = nota;
+        this.nota = nota;//de 0 a 100, isso impacta no desconto do carro
         this.preco = preco;
     }
 
