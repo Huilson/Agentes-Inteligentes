@@ -19,20 +19,20 @@ import java.util.Scanner;
 public class AgenteComprador extends Agent {
     Carro carro = new Carro();
     Scanner info = new Scanner(System.in);
-    boolean ok = true;
+    boolean ok = true;//Usado no REGEX pra converter String pra Numero (int e BigDecimal)
     //Lista de agentes de venda disponivéis
     private AID[] agentesVendor;
 
     @Override
     protected void setup() {
-        System.out.println("Hello World. I’m an agent!");
+        /*System.out.println("Hello World. I’m an agent!");
         System.out.println("My local-name is " + getAID().getLocalName());
         System.out.println("My GUID is " + getAID().getName());
         System.out.println("My addresses are:");
         Iterator it = getAID().getAllAddresses();
         while (it.hasNext()) {
             System.out.println("- " + it.next());
-        }
+        }*/
 
         carro = menu();
 
@@ -47,7 +47,8 @@ public class AgenteComprador extends Agent {
                  * */
                 DFAgentDescription template = new DFAgentDescription();//Descrição do Template
                 ServiceDescription servico = new ServiceDescription();//Cria um serviço
-                servico.setType("troca-carro");//Cria um tipo para o serviço (obrigatório)
+                //servico.setName("negociar-carros");
+                servico.setType("troca-carro");//Cria um tipo para o serviço (obrigatório), igual do Vendedor veja linha 53
                 template.addServices(servico);
                 try {/**
                      * Segundo o livro, se um agente deseja publicar um ou mais serviço é preciso ter o DF
@@ -77,10 +78,10 @@ public class AgenteComprador extends Agent {
     }
 
     private class NegociarCarro extends Behaviour {
-        private AID melhorVendedor; // The agent who provides the best offer
-        private BigDecimal melhorPreco;  // The best offered price
-        private int repliesCnt = 0; // The counter of replies from seller agents
-        private MessageTemplate mt; // The template to receive replies
+        private AID melhorVendedor; // Armazena o agente de venda com o melhor preço
+        private BigDecimal melhorPreco;  // Melhor preço do agente acima
+        private int repliesCnt = 0; //Contador de resposta (usado para calcular o números de agentes de venda)
+        private MessageTemplate mt; // Template para receber as respostas
         private int step = 0;
 
         public void action() {
@@ -88,20 +89,29 @@ public class AgenteComprador extends Agent {
             switch (step) {
                 case 0:
                     System.out.println("\nVamos negociar!");
-                    // Send the cfp to all sellers
+                    // Call For Proposal para todos os agentes de venda disponíveis
+                    /**
+                     * Vou resumir o que entendi do livro sobre o myAgent. Basicamente quando você for iniciar uma
+                     * classe myAgent você é obrigado a ter um parâmetro ACLMessage, esse parâmetro é usado para
+                     * iniciar o protocolo de comunicação. Citando o exemplo do livro: a classe ContractNetInitiator
+                     * recebe a mensagem Call For Proposal para então enviar a mensagem para os agentes que estão na
+                     * conversa, é por isso que a mensagem em si precisa de um ID e de um NOME, além de seu conteúdo,
+                     * que a mensagem em si (String). As classes iniciadoras de protocolo suportam interações um-para-um
+                     * e um-para-muitos, dependendo do número de receptores especificado na mensagem de iniciação.
+                     * */
                     ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
                     for (int i = 0; i < agentesVendor.length; ++i) {
-                        System.out.println("Enviando mensagem para "+agentesVendor[i]);
+                        System.out.println("Adicionando contato de "+agentesVendor[i]);
                         cfp.addReceiver(agentesVendor[i]);
                     }
-                    cfp.setContent(carro.getModelo());
-                    cfp.setConversationId("negociar-carros");
+                    cfp.setContent(carro.getModelo());//Conteúdo da mensagem
+                    cfp.setConversationId("negociar-carros");//Id da mensagem
                     cfp.setReplyWith("cfp"+System.currentTimeMillis()); //Tempo em millisegundos para criar chave única
                     System.out.println("Call For Proposal, chave gerada: "+cfp.getReplyWith());
-                    myAgent.send(cfp);
-                    // Prepare the template to get proposals
-                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("negociar-carros"),
-                            MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
+                    myAgent.send(cfp);//Enviando a mensangem para todos os agentes rastreados no onTick()
+                    // Organizar o template pra receber as propostas do vendedores
+                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("negociar-carros"),//Filtra mensagens que fazem parte do mesmo id
+                            MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));//Filtra mensagens que são respostas da mensagem enviada anteriormente
                     step = 1;
                     try {
                         Thread.sleep(5000);//dar um tempinho para ler o console
@@ -115,20 +125,20 @@ public class AgenteComprador extends Agent {
                     if (reply != null) {
                         // Resposta de um vendedor, se for uma PROPOSTA toca o baile
                         if (reply.getPerformative() == ACLMessage.PROPOSE) {
-                            // Oferta gerada pelo vendedor
+                            // Oferta gerada pelo vendedor, sendo o conteúdo da mensagem-resposta do vendedor
                             BigDecimal preco = new BigDecimal(reply.getContent());
 
                             //Em BigDecimal a comparação é um pouco diferente, você precisa
                             //usar o compareTo, para comparar PRECO com MELHORPRECO
                             //se essa comparação retornar -1, significa que PRECO é menor que MELHORPRECO
                             if (melhorVendedor == null || preco.compareTo(melhorPreco) < 0) {
-                                // This is the best offer at present
                                 System.out.println("\nUm carro com menor preço encontrado, valor: "+preco);
                                 melhorPreco = preco;
                                 melhorVendedor = reply.getSender();
                             }
                         }
                         repliesCnt++;
+                        //Os agentesVendor foi instânciado lá no onTick(), se alguém entrou depois já era
                         if (repliesCnt >= agentesVendor.length) {
                             // Todas as respostas recebidas, próxima etapa
                             step = 2;
@@ -146,13 +156,19 @@ public class AgenteComprador extends Agent {
                 case 2:
                     //Fazer pedido de comprar para o melhor vendedor
                     System.out.println("\nVamos fazer a proposta ao vendedor "+melhorVendedor+"!");
-                    ACLMessage mensagemCompra = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);//Manda uma mensagem que foi aceita a proposta
+                    /**
+                     * A resposta segue praticamente a mesma receita da mensagem para abrir a conversa, só muda que
+                     * agora você está informando que você vai aceitar a proposta da sua primeira requisição. Uma pequena
+                     * diferença é que agora você terá somente um Receiver, e não precisa mais de um FOR para mandar para
+                     * a turma toda de agentes vendedores, somente aquele que tem o melhor preço.
+                     * */
+                    ACLMessage mensagemCompra = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                     mensagemCompra.addReceiver(melhorVendedor);
                     mensagemCompra.setContent(carro.getModelo());
                     mensagemCompra.setConversationId("negociar-carros");
                     mensagemCompra.setReplyWith("Pedido: "+System.currentTimeMillis());
                     myAgent.send(mensagemCompra);
-                    // Prepara o template para fazer a resposta da ordem de compra
+                    // A mesma lógica de antes, cria o template para receber uma resposta com base na conversa
                     mt = MessageTemplate.and(MessageTemplate.MatchConversationId("negociar-carros"),
                             MessageTemplate.MatchInReplyTo(mensagemCompra.getReplyWith()));
                     step = 3;
@@ -176,7 +192,7 @@ public class AgenteComprador extends Agent {
                             myAgent.doDelete();//encerrando o agente
                         }
                         else {
-                            System.out.println("Houve uma falha na negocição parece que o carro já foi vendido");
+                            System.out.println("Houve uma falha na negociação parece que o carro já foi vendido");
                         }
 
                         step = 4;
@@ -199,24 +215,24 @@ public class AgenteComprador extends Agent {
             }
             return ((step == 2 && melhorVendedor == null) || step == 4);
         }
-    }  // End of inner class RequestPerformer
+    } //Fim da INNER CLASS
 
 
     public Carro menu(){
         while (ok) {
-            System.out.println("\n\n\n\n\n\n\n\n\n\n");//limpar console
+            System.out.println("\n\n\n\n\n\n\n\n\n\n");//limpar console, não achei um jeito mais bonito de fazer isso
             System.out.println("Qual marca de carro você deseja comprar?");
             carro.setMarca(info.nextLine().toUpperCase());
             System.out.println("Qual modelo dessa marca?");
             carro.setModelo(info.nextLine().toUpperCase());
             System.out.println("Qual o ano de fabricação?");
             String ano = info.nextLine();
-            System.out.println("Quanto você pode pagar?");
+            System.out.println("Quanto você pode pagar? (não use pontuação)");
             String preco = info.nextLine();
 
-            if (ano.matches("^\\d+$") && preco.matches("^\\d+$")) {
+            if (ano.matches("^\\d+$") && preco.matches("^\\d+$")) {//REGEX
                 carro.setAno(Integer.parseInt(ano));
-                carro.setPreco(new BigDecimal(preco));
+                carro.setPreco(new BigDecimal(preco));//Não aceita ponto
             } else {
                 System.out.println("Ano ou preço inválidos!");
                 continue;
@@ -226,9 +242,9 @@ public class AgenteComprador extends Agent {
             System.out.println("Marca: " + carro.getMarca());
             System.out.println("Modelo: " + carro.getModelo());
             System.out.println("Ano: " + carro.getAno());
-            System.out.println("Preco: " + carro.getPreco() + ",00 reais");
+            System.out.println("Preço: " + carro.getPreco() + ",00 reais");
             System.out.println("Digite 1 para prosseguir ou 2 para refazer a busca");
-            ok = info.nextInt() >= 2;//Se for maior ou igual a 2 a variavel recebe FALSE
+            ok = info.nextInt() >= 2;//Se for maior ou igual a 2 a variável recebe FALSE
         }
         System.out.println("Contactando vendedores, aguarde...");
         return carro;

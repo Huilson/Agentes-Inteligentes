@@ -25,19 +25,35 @@ public class AgenteVendedor extends Agent {
 
     @Override
     protected void setup() {
+        /**
+         * Para um melhor entendimento desse algoritmo veja a classe AgenteComprador antes
+         * */
+
         // Para gerar um carro aleatório use -> new Random().nextInt(5)
-        //Ou insira um valor de 0 a 4 para gerar um carro específico
-        adicionarCarros(1);//adiciona um carro aleatório ao vendedor
+        // ou insira um valor de 0 a 4 para gerar um carro específico
+        adicionarCarros(1);//adiciona um carro ao vendedor
 
-        //Registro do serviço do vendedor de carros nas páginas amarelas
-        //Directory Facilitator
+        /** Registro do serviço do vendedor de carros nas páginas amarelas.
+         * Para melhor entendimento veja a figura 4.5 do livro
+         * algo que foi esquecido de comentar, DF significa Directory Facilitator.
+         * DF é um agente, então é possível interagir com ele como qualquer outro
+         * agente via mensagens ACL usando linguagem e modelos adequados.
+         * As páginas amarelas é o que permite que um agente publique seu(s) serviço(s),
+         * para que outros agentes possam facilmente descobrir e explorar tais serviços.
+         * Um agente pode tanto publicar com procurar por serviços.
+         */
         DFAgentDescription dfd = new DFAgentDescription();
-        dfd.setName(getAID());//O nome do serviço
+        dfd.setName(getAID());//Identificador do agente, usado para depois criar a conversa
 
+        /**
+         * Vale lembrar que podemos criar, buscar, editar e excluir serviços durante qualquer
+         * momento, portanto que o agente ainda esteja "vivo", ou seja, quando chamou o takeDown()
+         * já era.
+         * */
         //Descrição do serviço
         ServiceDescription sd = new ServiceDescription();
-        sd.setType("troca-carro");//O tipo do serviço
-        sd.setName("negociar-carro");//O nome do serviço
+        sd.setType("troca-carro");// O tipo do serviço, igual do Comprador veja linha 50
+        sd.setName("negociar-carros");// O nome do serviço
         dfd.addServices(sd);
         try {
             DFService.register(this, dfd);
@@ -185,27 +201,28 @@ public class AgenteVendedor extends Agent {
      */
     public class OfertarCarro extends CyclicBehaviour {
         public void action() {
-            MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);//Call for Proposal, anuncia no mercado
-            ACLMessage msg = myAgent.receive(mt);//envio/resposta da mensagem
+            MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);// Call for Proposal, da para dizer
+            //que isso funciona quase como um anúncio no mercado, mas aqui ele fica aguardando alguém chamar
+            ACLMessage msg = myAgent.receive(mt);// Resposta da mensagem, caso um comprador chame
             if (msg != null) {
-                // CFP Message received. Process it
-                String prospostaComprador = msg.getContent();//Conteudo da Mensagem, é o que o comprador deseja comprar
-                System.out.println("Resposta de um comprador recebida: " + prospostaComprador);
-                ACLMessage reply = msg.createReply();//Resposta da mensagem, se tem ou não o que o comprador quer, vai ser escrito aqui
+                // Um(s) comprador recebeu a call
+                String prospostaComprador = msg.getContent();// Conteúdo da Mensagem, é o que o comprador deseja comprar
+                System.out.println("Resposta de um comprador recebida, ele deseja um: " + prospostaComprador);
+                ACLMessage resposta = msg.createReply();// Resposta da mensagem, se tem ou não o que o comprador quer, vai ser escrito aqui
 
-                Carro carro = buscarCarro(prospostaComprador);/*Busca pra ver se o livro existe*/
+                // Primeiro precisa ver se tem o carro que o comprador quer
+                Carro carro = buscarCarro(prospostaComprador);
 
                 if (carro != null) {
-                    // The requested book is available for sale Reply with the preco
-                    //O carro requerido está disponível para venda
-                    reply.setPerformative(ACLMessage.PROPOSE);
-                    reply.setContent(carro.getPreco().toString());//retorna só o preço do carro
+                    // O carro requerido está disponível para venda
+                    resposta.setPerformative(ACLMessage.PROPOSE);
+                    resposta.setContent(carro.getPreco().toString());//retorna só o preço do carro
                 } else {
-                    //O carro requerido NÃO está disponível para venda
-                    reply.setPerformative(ACLMessage.REFUSE);
-                    reply.setContent("not-available");
+                    // O carro requerido NÃO está disponível para venda
+                    resposta.setPerformative(ACLMessage.REFUSE);
+                    resposta.setContent("not-available");
                 }
-                myAgent.send(reply);//envia a resposta ao(s) compradore(s)
+                myAgent.send(resposta);//envia a resposta ao(s) compradore(s)
             } else {
                 block();
             }
@@ -214,19 +231,27 @@ public class AgenteVendedor extends Agent {
 
     private class VenderCarro extends CyclicBehaviour {
         public void action() {
+            //mesma lógica da oferta
             MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
             ACLMessage msg = myAgent.receive(mt);
             if (msg != null) {
-                // ACCEPT_PROPOSAL Message received. Process it
+                // Aqui o comprador aceitou a proposta
                 String prospostaComprador = msg.getContent();
                 ACLMessage reply = msg.createReply();
 
+                /** Durante a troca de mensagens pode acontecer do vendedor ter vendido o carro para
+                 * outro comprador, por isso antes de INFORMAR o comprador que o carro será dele é
+                 * preciso buscar o carro novamente, se ele existir remove o carro INFORMA que a
+                 * compra deu certo, mas e o conteúdo da mensagem? Daí tem que ver, pode ser o carro
+                 * em si ou qualquer outra coisa, nesse nosso código não precisa passar nada, afinial
+                 * é só um faz de conta, mas se quiser dá para passar um conteúdo na mensagem.
+                */
                 BigDecimal preco = removerCarro(prospostaComprador);
                 if (preco != null) {
                     reply.setPerformative(ACLMessage.INFORM);//Informar que carro foi vendido
                     System.out.println(prospostaComprador + " vendido para " + msg.getSender().getName());
                 } else {
-                    // The requested book has been sold to another buyer in the meanwhile .
+                    // O carro foi vendido para outro comprador enquanto o tramite ocorria.
                     reply.setPerformative(ACLMessage.FAILURE);
                     reply.setContent("not-available");
                 }
