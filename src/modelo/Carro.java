@@ -22,11 +22,13 @@ public class Carro {
     private int nota;//De 0 a 10; sendo 10 a melhor a nota
     private BigDecimal preco;
 
+    private int quantidade;
+
     //CONSTRUTORES
     public Carro() {
     }
 
-    public Carro(String modelo, String marca, int ano, int estado, List<Adicionais> adicionais, int nota, BigDecimal preco) {
+    public Carro(String modelo, String marca, int ano, int estado, List<Adicionais> adicionais, int nota, BigDecimal preco, int quantidade) {
         this.modelo = modelo;
         this.marca = marca;
         this.ano = ano;
@@ -34,10 +36,18 @@ public class Carro {
         this.adicionais = adicionais;
         this.nota = nota;//de 0 a 100, isso impacta no desconto do carro
         this.preco = preco;
+        this.quantidade = quantidade;
     }
 
     //GETTERS E SETTERS
 
+    public int getQuantidade() {
+        return quantidade;
+    }
+
+    public void setQuantidade(int quantidade) {
+        this.quantidade = quantidade;
+    }
     public String getMarca() {
         return marca;
     }

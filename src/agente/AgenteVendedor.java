@@ -101,20 +101,29 @@ public class AgenteVendedor extends Agent {
             if (msg != null) {
                 // Um(s) comprador recebeu a call
                 String prospostaComprador = msg.getContent();// Conteúdo da Mensagem, é o que o comprador deseja comprar
-                System.out.println("Resposta de um comprador recebida, ele deseja um: " + prospostaComprador);
+
+                String[] verCarro = prospostaComprador.split("-");
+                String modelo = verCarro[0];
+                String valor = verCarro[1];
+                int quantidade = Integer.parseInt(verCarro[2]);
+
+                System.out.println("Resposta de um comprador recebida, ele deseja um: " + modelo);
+                System.out.println("Valor máximo que ele pode pagar: " + valor);
+                System.out.println("Quantos quer: " + quantidade);
                 ACLMessage resposta = msg.createReply();// Resposta da mensagem, se tem ou não o que o comprador quer, vai ser escrito aqui
 
                 // Primeiro precisa ver se tem o carro que o comprador quer
-                Carro carro = buscarCarro(prospostaComprador);
+                Carro carro = buscarCarro(modelo, valor);
 
-                if (carro != null) {
+                if (carro != null && carro.getQuantidade() >= quantidade) {
                     // O carro requerido está disponível para venda
                     resposta.setPerformative(ACLMessage.PROPOSE);
                     resposta.setContent(carro.getPreco().toString());//retorna só o preço do carro
                 } else {
                     // O carro requerido NÃO está disponível para venda
+                    System.out.println("Não tenho essa quantidade de carro nesse modelo: " + quantidade);
                     resposta.setPerformative(ACLMessage.REFUSE);
-                    resposta.setContent("not-available");
+                    resposta.setContent("carros insuficientes");
                 }
                 myAgent.send(resposta);//envia a resposta ao(s) compradore(s)
             } else {
@@ -194,6 +203,7 @@ public class AgenteVendedor extends Agent {
                     }
 
                     System.out.println("Ano que o comprador deseja o carro: " + anoDesejado);
+                    System.out.println("O que temos aqui: " + carro.getAno());
                     int anoCarro = Integer.parseInt(anoDesejado);
                     if (anoCarro > carro.getAno()) {
                         desconto += anoCarro - carro.getAno();// Se o vendedor tiver um carro muito velho
@@ -230,6 +240,11 @@ public class AgenteVendedor extends Agent {
             if (msg != null) {
                 // Aqui o comprador aceitou a proposta
                 String prospostaComprador = msg.getContent();
+
+                String[] particao = prospostaComprador.split("-");
+                String modelo = particao[0];
+                int ano = Integer.parseInt(particao[1]);
+
                 ACLMessage reply = msg.createReply();
 
                 /** Durante a troca de mensagens pode acontecer do vendedor ter vendido o carro para
@@ -239,14 +254,14 @@ public class AgenteVendedor extends Agent {
                  * em si ou qualquer outra coisa, nesse nosso código não precisa passar nada, afinial
                  * é só um faz de conta, mas se quiser dá para passar um conteúdo na mensagem.
                  */
-                BigDecimal preco = removerCarro(prospostaComprador);
+                BigDecimal preco = removerCarro(modelo, ano);
                 if (preco != null) {
                     reply.setPerformative(ACLMessage.INFORM);//Informar que carro foi vendido
                     System.out.println(prospostaComprador + " vendido para " + msg.getSender().getName());
                 } else {
                     // O carro foi vendido para outro comprador enquanto o tramite ocorria.
                     reply.setPerformative(ACLMessage.FAILURE);
-                    reply.setContent("not-available");
+                    reply.setContent("Opa, parece que não há mais carros...");
                 }
                 myAgent.send(reply);
             } else {
@@ -258,10 +273,35 @@ public class AgenteVendedor extends Agent {
     /**
      * FUNÇÕES DIVERSAS
      */
+    private Carro buscarCarro(String carroRequisitado, String valorRequsitado) {
+        for (Carro carro : carros) {//Itera pelos carros da lista
+            BigDecimal preco = new BigDecimal(valorRequsitado);
+
+            if (carro.getModelo().equals(carroRequisitado) && carro.getPreco().compareTo(preco) <= 0) {//por enquanto só busca pelo modelo
+                System.out.println("Carro encontrado, podemos negociar!");
+                return carro;//encontrou o carro
+            }
+        }//fim for
+        return null;//carro não encontrado
+    }
+
+    /**BUSCA PARA DESCONTO*/
     private Carro buscarCarro(String carroRequisitado) {
         for (Carro carro : carros) {//Itera pelos carros da lista
+
             if (carro.getModelo().equals(carroRequisitado)) {//por enquanto só busca pelo modelo
-                System.out.println("Carro encontrado, podemos negociar!");
+                System.out.println("Carro encontrado, hora de ver o desconto!");
+                return carro;//encontrou o carro
+            }
+        }//fim for
+        return null;//carro não encontrado
+    }
+
+    /**FUNÇÃO DE BUSCA PARA REMOÇÃO*/
+    private Carro buscarCarro(String carroRequisitado, int quantidade) {
+        for (Carro carro : carros) {//Itera pelos carros da lista
+            if ( carro.getModelo().equals(carroRequisitado) && carro.getQuantidade() >= quantidade) {//por enquanto só busca pelo modelo
+                System.out.println("Carro encontrado, vamos vender");
                 return carro;//encontrou o carro
             }
         }//fim for
@@ -283,7 +323,8 @@ public class AgenteVendedor extends Agent {
                 3,
                 List.of(Adicionais.AR_CONDICIONADO, Adicionais.CAMARA_RE, Adicionais.DIRECAO_HIDRAULICA),
                 100,
-                gerarValor(90000.00, 95000.00)
+                gerarValor(90000.00, 95000.00),
+                1
         );
         Carro cruze = new Carro(
                 "CRUZE",
@@ -293,7 +334,8 @@ public class AgenteVendedor extends Agent {
                 List.of(Adicionais.AR_CONDICIONADO, Adicionais.CAMARA_RE, Adicionais.DIRECAO_HIDRAULICA,
                         Adicionais.CENTRAL_MULTIMIDIA, Adicionais.VIDROS_ELETRICOS),
                 100,
-                gerarValor(80000.00, 95000.00)
+                gerarValor(80000.00, 95000.00),
+                2
         );
         Carro gol = new Carro(
                 "GOL",
@@ -302,7 +344,8 @@ public class AgenteVendedor extends Agent {
                 1,
                 List.of(Adicionais.BANCOS_DE_COURO),
                 100,
-                gerarValor(10000.00, 15000.00)
+                gerarValor(10000.00, 15000.00),
+                1
         );
         Carro pollo = new Carro(
                 "POLLO",
@@ -312,7 +355,8 @@ public class AgenteVendedor extends Agent {
                 List.of(Adicionais.CAMARA_RE, Adicionais.AR_CONDICIONADO, Adicionais.CENTRAL_MULTIMIDIA,
                         Adicionais.SISTEMA_DE_COLISAO, Adicionais.VIDROS_ELETRICOS),
                 100,
-                gerarValor(75000.00, 89290.00)
+                gerarValor(75000.00, 89290.00),
+                3
         );
         Carro mustangGT = new Carro(
                 "MUSTANG GT",
@@ -322,7 +366,8 @@ public class AgenteVendedor extends Agent {
                 List.of(Adicionais.CAMARA_RE, Adicionais.AR_CONDICIONADO, Adicionais.CENTRAL_MULTIMIDIA,
                         Adicionais.SISTEMA_DE_COLISAO, Adicionais.VIDROS_ELETRICOS),
                 100,
-                gerarValor(45000.00, 549000.00)
+                gerarValor(45000.00, 549000.00),
+                1
         );
 
         switch (index) {
@@ -350,10 +395,15 @@ public class AgenteVendedor extends Agent {
 
     }
 
-    private BigDecimal removerCarro(String carroVendido) {
-        Carro carro = buscarCarro(carroVendido);//Chama novamente a Função de busca
+    private BigDecimal removerCarro(String carroVendido, int quantidade){
+        Carro carro = buscarCarro(carroVendido, quantidade);//Chama novamente a Função de busca
         if (carro != null) {
-            carros.remove(carro);//Remove o carro que foi vendido da lista
+            carro.setQuantidade(carro.getQuantidade() - quantidade);
+            if(carro.getQuantidade() <= 0){
+                carros.remove(carro);//Remove o carro que foi vendido da lista
+            }else{
+                return null;
+            }
         }
         if (carro != null) {
             return carro.getPreco();//Retorna o preço do carro

@@ -1,5 +1,8 @@
 /**
+ * CODED BY: HUILSON JOSÉ LORENZI, VINICÍUS BAUER
+ *
  * LEIA: ANTES DE COMEÇAR A RODAR VEJA O AGENTEVENDEDOR E ORGANIZE OS CARROS DE CADA VENDEDOR
+ * MODELO, ADICIONAIS, QUANTIDADE, VALOR, ETC...
  * DEPOIS PODE RODAR O CÓDIGO ELE ESTÁ BEM COMENTADO, CUIDADO PARA NÃO ERRAR NA HORA DE DIGITAR
  * OS DADOS DO CARRO TANTO NO COMPRADOR COMO NO VENDEDOR. O ALGORITMO IRÁ VER QUAL VENDEDOR
  * TEM O CARRO MAIS BARATO DEPOIS VAI TENTAR CRIAR UM DESCONTO COM BASE NO ANO E NOS ADICIONAIS
@@ -7,7 +10,12 @@
  * DEPOIS DE UMA PEQUISA PERCEBI QUE SEQUENTIALBEHAVIOR ERA O MELHOR PARA A IDEIA DO ALGORITMO
  * DEI UMA LIDA E IMPLEMENTEI, ESPERO QUE TENHA FICADO BOM.
  *
+ * SINTO TAMBÉM POR NÃO TER TESTADO COM VÁRIOS COMPRADORES, PODE SER QUE O CÓDIGO APRESENTE
+ * FALHAS, MAS 1 COMPRADOR PARA MUITOS VENDEDORES (3 NO CASO) FOI TRANQUILO, NÃO FORCEI MUITO O
+ * CÓDIGO, MAS ACREDITO QUE NÃO TENHA PROBLEMAS.
+ *
  * OUTRA COISA, NÃO APAGUE OS SLEEP, SE NÃO DÁ PAU KKKKKKK
+ * SEI QUE É CHATO FICAR ESPERANDO, MAS SÉRIO, NÃO MEXA NOS SLEEPS
  * */
 
 package agente;
@@ -134,7 +142,7 @@ public class AgenteComprador extends Agent {
                         System.out.println("Adicionando contato de " + agentesVendor[i]);
                         cfp.addReceiver(agentesVendor[i]);
                     }
-                    cfp.setContent(carro.getModelo());//Conteúdo da mensagem
+                    cfp.setContent(carro.getModelo()+"-"+carro.getPreco()+"-"+carro.getQuantidade());//Conteúdo da mensagem
                     cfp.setConversationId("negociar-carros");//Id da mensagem
                     cfp.setReplyWith("cfp" + System.currentTimeMillis()); //Tempo em millisegundos para criar chave única
                     System.out.println("Call For Proposal, chave gerada: " + cfp.getReplyWith());
@@ -171,6 +179,8 @@ public class AgenteComprador extends Agent {
                                 melhorVendedor = resposta.getSender();
                                 System.out.println("O vendedor é: " + melhorVendedor + "\n");
                             }
+                        } else if (resposta.getPerformative() == ACLMessage.REFUSE) {
+                            System.out.println("O vendedor "+resposta.getSender()+" não tem carros suficientes, ou não tem o carro que você deseja");
                         }
                         repliesCnt++;
                         //Os agentesVendor foi instânciado lá no onTick(), se alguém entrou depois já era
@@ -214,6 +224,7 @@ public class AgenteComprador extends Agent {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
+                    step = 3;
                 }
             });
             seq.addSubBehaviour(new OneShotBehaviour(agent) {
@@ -267,6 +278,7 @@ public class AgenteComprador extends Agent {
                         agent.doDelete();//mata o agente, vai ter de recomeçar...
                         block();
                     }
+                    step = 4;
                 }
             });
             seq.addSubBehaviour(new OneShotBehaviour(agent) {
@@ -274,9 +286,8 @@ public class AgenteComprador extends Agent {
                     System.out.println("\nPasso 5");
                     System.out.println("Agora vamos confirmar a compra");
 
-
                     ACLMessage comprarCarro = new ACLMessage(ACLMessage.CONFIRM);// O INFORM é usado para passar informações
-                    comprarCarro.setContent(carro.getModelo());
+                    comprarCarro.setContent(carro.getModelo()+"-"+carro.getQuantidade());
                     comprarCarro.setConversationId("negociar-carros");
                     comprarCarro.setReplyWith("Pedido: " + System.currentTimeMillis());
                     comprarCarro.addReceiver(melhorVendedor);
@@ -300,7 +311,7 @@ public class AgenteComprador extends Agent {
                             System.out.println("Houve uma falha na negociação parece que o carro já foi vendido");
                         }
 
-                        step = 4;
+                        step = 5;
                         try {
                             Thread.sleep(5000);//dar um tempinho para ler o console
                         } catch (InterruptedException e) {
@@ -325,8 +336,9 @@ public class AgenteComprador extends Agent {
         public boolean done() {
             if (step == 2 && melhorVendedor == null) {
                 System.out.println("Não foi possível encontrar o : " + carro.getModelo() + " para vender!");
+                myAgent.doDelete();
             }
-            return ((step == 2 && melhorVendedor == null) || step == 4);
+            return ((step == 2 && melhorVendedor == null) || step == 5);
         }
     }//Fim da INNER CLASS
 
@@ -343,14 +355,17 @@ public class AgenteComprador extends Agent {
             carro.setModelo(info.nextLine().toUpperCase());
             System.out.println("Qual o ano de fabricação?");
             String ano = info.nextLine();
+            System.out.println("Quantos quer?");
+            String qnt = info.nextLine();
             System.out.println("Quanto você pode pagar? (não use pontuação)");
             String preco = info.nextLine();
 
-            if (ano.matches("^\\d+$") && preco.matches("^\\d+$")) {//REGEX
+            if (ano.matches("^\\d+$") && preco.matches("^\\d+$") && qnt.matches("^\\d+$")) {//REGEX
+                carro.setQuantidade(Integer.parseInt(qnt));
                 carro.setAno(Integer.parseInt(ano));
                 carro.setPreco(new BigDecimal(preco));//Não aceita ponto
             } else {
-                System.out.println("Ano ou preço inválidos!");
+                System.out.println("Ano, quantidade ou preço inválidos!");
                 continue;
             }
 
